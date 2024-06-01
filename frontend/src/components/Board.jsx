@@ -1,34 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
+import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
-import { Chess } from 'chess.js';
+import GameOverModal from "./GameOverModal";
 
-function Board() {
-    const [chess] = useState(new Chess());
-    const [position, setPosition] = useState('start');
+export default function PlayRandomMoveEngine({ onGameEnd }) {
+    const [game, setGame] = useState(new Chess());
+    const [isGameOver, setIsGameOver] = useState(false);
 
-    const onDrop = ({ sourceSquare, targetSquare }) => {
-        let move = chess.move({
+    function makeAMove(move) {
+        const gameCopy = { ...game };
+        const result = gameCopy.move(move);
+        setGame(gameCopy);
+        return result; // null if the move was illegal, the move object if the move was legal
+    }
+
+    function makeRandomMove() {
+        const possibleMoves = game.moves();
+        if (game.game_over() || game.in_draw() || possibleMoves.length === 0) {
+            setIsGameOver(true);
+            onGameEnd(); // Notify parent component that the game is over
+            return;
+        }
+        const randomIndex = Math.floor(Math.random() * possibleMoves.length);
+        makeAMove(possibleMoves[randomIndex]);
+    }
+
+    function onDrop(sourceSquare, targetSquare) {
+        const move = makeAMove({
             from: sourceSquare,
             to: targetSquare,
-            promotion: 'q' // always promote to a queen for example simplicity
+            promotion: "q",
         });
 
         // illegal move
-        if (move === null) return;
-
-        setPosition(chess.fen());
-    };
+        if (move === null) return false;
+        setTimeout(makeRandomMove, 200);
+        return true;
+    }
 
     return (
-
-        <Chessboard
-            id="ChessGameLogic"
-            position={position}
-            onPieceDrop={onDrop}
-            customDarkSquareStyle={{ backgroundColor: "#3d2c32" }}
-            customLightSquareStyle={{ backgroundColor: "#f9ad59" }}
-        />
+        <>
+            {isGameOver && <GameOverModal onClose={() => setIsGameOver(false)} />}
+            <Chessboard position={game.fen()} onPieceDrop={onDrop} />
+        </>
     );
 }
-
-export default Board
